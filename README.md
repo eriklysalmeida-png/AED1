@@ -1,2 +1,2 @@
 # AED1
-ALGORTIMOS DA DISCIPLINA DE ALGORTMOS E ESTRUTURAS DE DADOS 1
+"Algoritmos da disciplina de Algoritmos e Estruturas de Dados I
