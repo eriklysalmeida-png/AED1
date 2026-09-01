@@ -5,7 +5,7 @@
 #define ALTURA_JANELA 600
 #define TAM_CELULA 40
 
-// Agrupa posição, velocidade, raio e cor da bola
+// Agrupa os dados de cada bola
 typedef struct {
     Vector2 pos;
     Vector2 vel;
@@ -13,19 +13,19 @@ typedef struct {
     Color cor;
 } Bola;
 
-// Cria a matriz dinâmica alocando o vetor de ponteiros e depois as linhas
+// Aloca a matriz iniciando todos os valores com 0
 int **criarMatriz(int linhas, int colunas) {
     int **matriz = (int **)malloc(linhas * sizeof(int *));
     for (int i = 0; i < linhas; i++) {
         matriz[i] = (int *)malloc(colunas * sizeof(int));
         for (int j = 0; j < colunas; j++) {
-            matriz[i][j] = 0; // Inicia com 0 para indicar que a célula não foi visitada
+            matriz[i][j] = 0;
         }
     }
     return matriz;
 }
 
-// Liberação em duas etapas: primeiro as linhas, depois o vetor principal
+// Libera a matriz em duas etapas
 void liberarMatriz(int **matriz, int linhas) {
     for (int i = 0; i < linhas; i++) {
         free(matriz[i]);
@@ -33,11 +33,11 @@ void liberarMatriz(int **matriz, int linhas) {
     free(matriz);
 }
 
-// Aloca o vetor de structs de uma só vez em um bloco contíguo
+// Aloca o vetor de bolas em um unico bloco
 Bola *criarBolas(int quantidade) {
     Bola *bolas = (Bola *)malloc(quantidade * sizeof(Bola));
     for (int i = 0; i < quantidade; i++) {
-        Bola *b = (bolas + i); // Uso da aritmética de ponteiros (equivale a &bolas[i])
+        Bola *b = (bolas + i); 
         b->pos = (Vector2){ (float)GetRandomValue(50, LARGURA_JANELA - 50), (float)GetRandomValue(50, ALTURA_JANELA - 50) };
         b->vel = (Vector2){ (float)GetRandomValue(-5, 5), (float)GetRandomValue(-5, 5) };
         b->raio = 15.0f;
@@ -46,7 +46,7 @@ Bola *criarBolas(int quantidade) {
     return bolas;
 }
 
-// Modifica os dados originais através do ponteiro da struct
+// Atualiza a posicao alterando os dados originais atraves do ponteiro
 void atualizarBola(Bola *b) {
     b->pos.x += b->vel.x;
     b->pos.y += b->vel.y;
@@ -56,7 +56,7 @@ void atualizarBola(Bola *b) {
 }
 
 int main(void) {
-    InitWindow(LARGURA_JANELA, ALTURA_JANELA, "atividade1");
+    InitWindow(LARGURA_JANELA, ALTURA_JANELA, "Janela");
     SetTargetFPS(60);
 
     int linhas = ALTURA_JANELA / TAM_CELULA;
@@ -68,12 +68,12 @@ int main(void) {
 
     while (!WindowShouldClose()) {
         
-        // Adiciona uma nova bola redimensionando a memória sem recriar o vetor
+        // Adiciona uma nova bola redimensionando o vetor sem perder os dados
         if (IsKeyPressed(KEY_SPACE)) {
             quantidadeBolas++;
             bolas = (Bola *)realloc(bolas, quantidadeBolas * sizeof(Bola));
             
-            // Configura os atributos da nova bola na última posição do vetor alocado
+            // Configura os valores da nova struct alocada no final do vetor
             Bola *nova = (bolas + (quantidadeBolas - 1));
             nova->pos = (Vector2){ (float)GetRandomValue(50, LARGURA_JANELA - 50), (float)GetRandomValue(50, ALTURA_JANELA - 50) };
             nova->vel = (Vector2){ (float)GetRandomValue(-5, 5), (float)GetRandomValue(-5, 5) };
@@ -83,7 +83,7 @@ int main(void) {
             nova->cor = (Color){ GetRandomValue(50, 255), GetRandomValue(50, 255), GetRandomValue(50, 255), 255 };
         }
 
-        // Remove a última bola diminuindo o bloco de memória alocado
+        // Remove a ultima bola diminuindo o bloco de memoria alocado
         if (IsKeyPressed(KEY_BACKSPACE) && quantidadeBolas > 0) {
             quantidadeBolas--;
             if (quantidadeBolas > 0) {
@@ -94,21 +94,19 @@ int main(void) {
             }
         }
 
-        // Atualiza a física e mapeia a colisão com a grade
+        // Atualiza a fisica e marca a celula visitada
         for (int i = 0; i < quantidadeBolas; i++) {
             atualizarBola(bolas + i);
 
-            // Converte a posição atual em pixels para índices de linha e coluna
             int coluna = (int)((bolas + i)->pos.x / TAM_CELULA);
             int linha = (int)((bolas + i)->pos.y / TAM_CELULA);
 
-            // Verifica os limites da matriz antes de acessar para evitar estouro de memória
             if (linha >= 0 && linha < linhas && coluna >= 0 && coluna < colunas) {
-                matriz[linha][coluna] = 1; // Marca a célula como visitada no mapa de calor
+                matriz[linha][coluna] = 1;
             }
         }
 
-        // Varre a matriz para contar quantas células diferentes já foram visitadas
+        // Conta quantas celulas foram visitadas
         int celulasVisitadas = 0;
         for (int i = 0; i < linhas; i++) {
             for (int j = 0; j < colunas; j++) {
@@ -124,26 +122,24 @@ int main(void) {
         // Percorre e desenha a matriz de fundo
         for (int i = 0; i < linhas; i++) {
             for (int j = 0; j < colunas; j++) {
-                // Altera a cor de desenho caso a célula tenha passado de 0 para 1
                 Color corFundo = (matriz[i][j] == 1) ? LIGHTGRAY : DARKGRAY;
                 DrawRectangle(j * TAM_CELULA, i * TAM_CELULA, TAM_CELULA, TAM_CELULA, corFundo);
                 DrawRectangleLines(j * TAM_CELULA, i * TAM_CELULA, TAM_CELULA, TAM_CELULA, BLACK);
             }
         }
 
-        // Renderiza cada struct do vetor de bolas
+        // Desenha os elementos do vetor de bolas
         for (int i = 0; i < quantidadeBolas; i++) {
             Bola *b = (bolas + i);
             DrawCircleV(b->pos, b->raio, b->cor);
         }
 
-        // Exibe o contador exigido pelo Exercício 2
-        DrawText(TextFormat("Celulas visitadas: %d", celulasVisitadas), 10, 10, 20, BLACK);
+        DrawText(TextFormat("Celulas visitadas: %d", celulasVisitadas), 10, 10, 20, GREEN);
 
         EndDrawing();
     }
 
-    // Liberações obrigatórias no fim da execução para evitar memory leak
+    // Libera a memoria alocada antes de fechar o programa
     if (bolas != NULL) {
         free(bolas);
     }
