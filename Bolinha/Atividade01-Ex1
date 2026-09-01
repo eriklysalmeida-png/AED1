@@ -5,7 +5,7 @@
 #define ALTURA_JANELA 600
 #define TAM_CELULA 40
 
-// Estrutura de dados: a bola
+// Agrupa os dados de cada bola
 typedef struct {
     Vector2 pos;
     Vector2 vel;
@@ -13,7 +13,7 @@ typedef struct {
     Color cor;
 } Bola;
 
-// Cria a matriz de fundo decorativa
+// Aloca o vetor de ponteiros e as linhas da matriz
 int **criarMatriz(int linhas, int colunas) {
     int **matriz = (int **)malloc(linhas * sizeof(int *));
     for (int i = 0; i < linhas; i++) {
@@ -25,7 +25,7 @@ int **criarMatriz(int linhas, int colunas) {
     return matriz;
 }
 
-// Libera a memória da matriz
+// Libera a matriz em duas etapas
 void liberarMatriz(int **matriz, int linhas) {
     for (int i = 0; i < linhas; i++) {
         free(matriz[i]);
@@ -33,7 +33,7 @@ void liberarMatriz(int **matriz, int linhas) {
     free(matriz);
 }
 
-// Cria o vetor inicial de bolas
+// Aloca o vetor de bolas em um unico bloco
 Bola *criarBolas(int quantidade) {
     Bola *bolas = (Bola *)malloc(quantidade * sizeof(Bola));
     for (int i = 0; i < quantidade; i++) {
@@ -46,7 +46,7 @@ Bola *criarBolas(int quantidade) {
     return bolas;
 }
 
-// Atualiza a física da bola via ponteiro
+// Atualiza a posicao alterando os dados originais atraves do ponteiro
 void atualizarBola(Bola *b) {
     b->pos.x += b->vel.x;
     b->pos.y += b->vel.y;
@@ -56,7 +56,7 @@ void atualizarBola(Bola *b) {
 }
 
 int main(void) {
-    InitWindow(LARGURA_JANELA, ALTURA_JANELA, "Exercício 1 - Alocação Dinâmica");
+    InitWindow(LARGURA_JANELA, ALTURA_JANELA, "Janela");
     SetTargetFPS(60);
 
     int linhas = ALTURA_JANELA / TAM_CELULA;
@@ -68,26 +68,22 @@ int main(void) {
 
     while (!WindowShouldClose()) {
         
-        
-       // EXERCÍCIO 1: Redimensionando o vetor
-       
-
-        // Adicionar nova bola
+        // Adiciona uma nova bola redimensionando o vetor sem perder os dados
         if (IsKeyPressed(KEY_SPACE)) {
             quantidadeBolas++;
             bolas = (Bola *)realloc(bolas, quantidadeBolas * sizeof(Bola));
             
-            // Configurar a nova bola na última posição
+            // Configura os valores da nova struct alocada no final do vetor
             Bola *nova = (bolas + (quantidadeBolas - 1));
             nova->pos = (Vector2){ GetRandomValue(50, LARGURA_JANELA - 50), GetRandomValue(50, ALTURA_JANELA - 50) };
             nova->vel = (Vector2){ (float)GetRandomValue(-5, 5), (float)GetRandomValue(-5, 5) };
-            if (nova->vel.x == 0) nova->vel.x = 2; // Evitar bola parada
+            if (nova->vel.x == 0) nova->vel.x = 2; 
             if (nova->vel.y == 0) nova->vel.y = 2;
             nova->raio = 15.0f;
             nova->cor = (Color){ GetRandomValue(50, 255), GetRandomValue(50, 255), GetRandomValue(50, 255), 255 };
         }
 
-        // Remover a última bola
+        // Remove a ultima bola diminuindo o bloco de memoria alocado
         if (IsKeyPressed(KEY_BACKSPACE) && quantidadeBolas > 0) {
             quantidadeBolas--;
             if (quantidadeBolas > 0) {
@@ -98,7 +94,7 @@ int main(void) {
             }
         }
 
-        // Atualizar todas as bolas
+        // Atualiza a fisica de cada bola
         for (int i = 0; i < quantidadeBolas; i++) {
             atualizarBola(bolas + i);
         }
@@ -106,7 +102,7 @@ int main(void) {
         BeginDrawing();
         ClearBackground(RAYWHITE);
 
-        // Desenhar a grade de fundo decorativa
+        // Percorre e desenha a matriz de fundo
         for (int i = 0; i < linhas; i++) {
             for (int j = 0; j < colunas; j++) {
                 Color corFundo = (matriz[i][j] == 1) ? LIGHTGRAY : DARKGRAY;
@@ -115,18 +111,18 @@ int main(void) {
             }
         }
 
-        // Desenhar as bolas
+        // Desenha os elementos do vetor de bolas
         for (int i = 0; i < quantidadeBolas; i++) {
             Bola *b = (bolas + i);
             DrawCircleV(b->pos, b->raio, b->cor);
         }
 
-        DrawText(TextFormat("Bolas na tela (Espaço/Backspace): %d", quantidadeBolas), 10, 10, 20, GREEN);
+        DrawText(TextFormat("Bolas na tela (Espaco/Backspace): %d", quantidadeBolas), 10, 10, 20, GREEN);
 
         EndDrawing();
     }
 
-    // Prevenção de Memory Leak
+    // Libera a memoria alocada antes de fechar o programa
     if (bolas != NULL) {
         free(bolas);
     }
