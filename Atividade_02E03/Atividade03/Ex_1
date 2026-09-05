@@ -1,0 +1,155 @@
+#include "raylib.h"
+#include <stdlib.h>
+
+#define LARGURA_JANELA 800
+#define ALTURA_JANELA 600
+
+typedef struct {
+    float dano;
+    int alcance;
+} DadosArma;
+
+typedef struct {
+    int cura;
+} DadosPocao;
+
+typedef struct {
+    int absorcao;
+} DadosEscudo;
+
+typedef union {
+    DadosArma arma;
+    DadosPocao pocao;
+    DadosEscudo escudo;
+} DadosItem;
+
+typedef enum {
+    ITEM_ARMA,
+    ITEM_POCAO,
+    ITEM_ESCUDO
+} TipoItem;
+
+typedef struct {
+    int vida;
+    int dano;
+    int armadura;
+} Jogador;
+
+typedef struct {
+    Vector2 pos;
+    float raio;
+    int coletado; // 0 para falso, 1 para verdadeiro
+    TipoItem tipo;
+    DadosItem dados;
+} Item;
+
+Color corDoItem(TipoItem tipo) {
+    switch (tipo) {
+        case ITEM_ARMA: return RED;
+        case ITEM_POCAO: return GREEN;
+        case ITEM_ESCUDO: return BLUE;
+        default: return WHITE;
+    }
+}
+
+Item *criarItens(int quantidade) {
+    Item *itens = (Item *)malloc(quantidade * sizeof(Item));
+    for (int i = 0; i < quantidade; i++) {
+        Item *it = (itens + i);
+        it->pos = (Vector2){ (float)GetRandomValue(30, LARGURA_JANELA - 30), (float)GetRandomValue(30, ALTURA_JANELA - 30) };
+        it->raio = 12.0f;
+        it->coletado = 0;
+        it->tipo = (TipoItem)GetRandomValue(ITEM_ARMA, ITEM_ESCUDO);
+
+        if (it->tipo == ITEM_ARMA) {
+            it->dados.arma.dano = (float)GetRandomValue(2, 8);
+            it->dados.arma.alcance = GetRandomValue(1, 3);
+        } else if (it->tipo == ITEM_POCAO) {
+            it->dados.pocao.cura = GetRandomValue(10, 30);
+        } else if (it->tipo == ITEM_ESCUDO) {
+            it->dados.escudo.absorcao = GetRandomValue(5, 15);
+        }
+    }
+    return itens;
+}
+
+void aplicarItem(Jogador *j, Item *item) {
+    switch (item->tipo) {
+        case ITEM_ARMA:
+            j->dano += (int)item->dados.arma.dano;
+            break;
+        case ITEM_POCAO:
+            j->vida += item->dados.pocao.cura;
+            break;
+        case ITEM_ESCUDO:
+            j->armadura += item->dados.escudo.absorcao;
+            break;
+    }
+    item->coletado = 1;
+}
+
+int tentarColetarItem(Item *item, Vector2 posJogador, float raioJogador) {
+    if (item->coletado == 1) return 0;
+
+    float dx = item->pos.x - posJogador.x;
+    float dy = item->pos.y - posJogador.y;
+    float distancia = (dx * dx + dy * dy);
+    float somaRaios = (item->raio + raioJogador) * (item->raio + raioJogador);
+
+    if (distancia <= somaRaios) {
+        return 1;
+    }
+    return 0;
+}
+
+int main(void) {
+    InitWindow(LARGURA_JANELA, ALTURA_JANELA, "Janela");
+    SetTargetFPS(60);
+
+    int quantidadeItens = 10;
+    Item *itens = criarItens(quantidadeItens);
+
+    Vector2 posJogador = { LARGURA_JANELA / 2.0f, ALTURA_JANELA / 2.0f };
+    float raioJogador = 15.0f;
+    float velocidadeJogador = 5.0f;
+
+    Jogador jogador = { 100, 10, 0 }; // Vida, Dano, Armadura
+
+    while (!WindowShouldClose()) {
+        if (IsKeyDown(KEY_RIGHT)) posJogador.x += velocidadeJogador;
+        if (IsKeyDown(KEY_LEFT)) posJogador.x -= velocidadeJogador;
+        if (IsKeyDown(KEY_UP)) posJogador.y -= velocidadeJogador;
+        if (IsKeyDown(KEY_DOWN)) posJogador.y += velocidadeJogador;
+
+        for (int i = 0; i < quantidadeItens; i++) {
+            Item *it = (itens + i);
+            if (it->coletado == 0) {
+                if (tentarColetarItem(it, posJogador, raioJogador)) {
+                    aplicarItem(&jogador, it);
+                }
+            }
+        }
+
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+
+        for (int i = 0; i < quantidadeItens; i++) {
+            Item *it = (itens + i);
+            if (it->coletado == 0) {
+                DrawCircleV(it->pos, it->raio, corDoItem(it->tipo));
+            }
+        }
+
+        DrawCircleV(posJogador, raioJogador, DARKBLUE);
+        DrawText(TextFormat("Vida: %d | Dano: %d | Armadura: %d", jogador.vida, jogador.dano, jogador.armadura), 10, 10, 20, BLACK);
+
+        EndDrawing();
+    }
+
+    if (itens != NULL) {
+        free(itens);
+    }
+
+    CloseWindow();
+    return 0;
+}
