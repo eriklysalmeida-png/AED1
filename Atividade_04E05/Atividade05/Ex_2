@@ -1,0 +1,133 @@
+#include "raylib.h"
+#include <stdlib.h>
+#include <math.h>
+
+#define MAX_ENTIDADES 30
+#define RAIO_JOGADOR 15.0f
+
+typedef enum {
+    ENTIDADE_JOGADOR,
+    ENTIDADE_INIMIGO,
+    ENTIDADE_ITEM
+} TipoEntidade;
+
+typedef union {
+    int dano;
+    int valor;
+} ExtraEntidade;
+
+typedef struct {
+    TipoEntidade tipo;
+    Vector2 pos;
+    float raio;
+    int vida;
+    Color cor;
+    ExtraEntidade extra;
+} Entidade;
+
+Entidade *vetorEntidades[MAX_ENTIDADES];
+int totalEntidades = 0;
+
+Entidade *criarEntidade(TipoEntidade tipo, Vector2 pos) {
+    Entidade *e = (Entidade *)malloc(sizeof(Entidade));
+    if (e == NULL) return NULL;
+
+    e->tipo = tipo;
+    e->pos = pos;
+    e->raio = (tipo == ENTIDADE_JOGADOR) ? RAIO_JOGADOR : (tipo == ENTIDADE_INIMIGO) ? 15.0f : 8.0f;
+
+    switch (tipo) {
+        case ENTIDADE_JOGADOR:
+            e->vida = 100;
+            e->cor = BLUE;
+            break;
+        case ENTIDADE_INIMIGO:
+            e->vida = 40;
+            e->cor = MAROON;
+            e->extra.dano = GetRandomValue(5, 15);
+            break;
+        case ENTIDADE_ITEM:
+            e->vida = 1;
+            e->cor = GOLD;
+            e->extra.valor = GetRandomValue(5, 20);
+            break;
+    }
+    return e;
+}
+
+void ordenarPorDistancia() {
+    if (totalEntidades <= 2) return;
+    Vector2 posJogador = vetorEntidades[0]->pos;
+
+    for (int i = 1; i < totalEntidades - 1; i++) {
+        for (int j = i + 1; j < totalEntidades; j++) {
+            float dx1 = vetorEntidades[i]->pos.x - posJogador.x;
+            float dy1 = vetorEntidades[i]->pos.y - posJogador.y;
+            float dist1 = sqrtf(dx1 * dx1 + dy1 * dy1);
+
+            float dx2 = vetorEntidades[j]->pos.x - posJogador.x;
+            float dy2 = vetorEntidades[j]->pos.y - posJogador.y;
+            float dist2 = sqrtf(dx2 * dx2 + dy2 * dy2);
+
+            if (dist2 < dist1) {
+                Entidade *tmp = vetorEntidades[i];
+                vetorEntidades[i] = vetorEntidades[j];
+                vetorEntidades[j] = tmp;
+            }
+        }
+    }
+}
+
+int main(void) {
+    InitWindow(800, 600, "Janela");
+    SetTargetFPS(60);
+
+    vetorEntidades[totalEntidades++] = criarEntidade(ENTIDADE_JOGADOR, (Vector2){400, 300});
+
+    for (int i = 0; i < 3; i++) {
+        Vector2 pos = { (float)GetRandomValue(50, 750), (float)GetRandomValue(50, 550) };
+        vetorEntidades[totalEntidades++] = criarEntidade(ENTIDADE_INIMIGO, pos);
+    }
+
+    float velocidadeJogador = 5.0f;
+
+    while (!WindowShouldClose()) {
+        if (IsKeyDown(KEY_RIGHT)) vetorEntidades[0]->pos.x += velocidadeJogador;
+        if (IsKeyDown(KEY_LEFT)) vetorEntidades[0]->pos.x -= velocidadeJogador;
+        if (IsKeyDown(KEY_UP)) vetorEntidades[0]->pos.y -= velocidadeJogador;
+        if (IsKeyDown(KEY_DOWN)) vetorEntidades[0]->pos.y += velocidadeJogador;
+
+        // Spawner dinâmico de itens ao pressionar a tecla N[cite: 5]
+        if (IsKeyPressed(KEY_N)) {
+            if (totalEntidades < MAX_ENTIDADES) {
+                Vector2 novaPos = { (float)GetRandomValue(50, 750), (float)GetRandomValue(50, 550) };
+                vetorEntidades[totalEntidades++] = criarEntidade(ENTIDADE_ITEM, novaPos);
+            }
+        }
+
+        ordenarPorDistancia();
+
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+
+        for (int i = 0; i < totalEntidades; i++) {
+            Entidade *e = vetorEntidades[i];
+            DrawCircleV(e->pos, e->raio, e->cor);
+            if (i == 1) {
+                DrawCircleLines((int)e->pos.x, (int)e->pos.y, e->raio + 4, BLACK);
+            }
+        }
+
+        DrawText("Pressione 'N' para gerar um novo item[cite: 5]", 10, 10, 20, BLACK);
+        DrawText(TextFormat("Total Entidades: %d", totalEntidades), 10, 40, 20, DARKGRAY);
+
+        EndDrawing();
+    }
+
+    for (int i = 0; i < totalEntidades; i++) {
+        free(vetorEntidades[i]);
+    }
+
+    CloseWindow();
+    return 0;
+}
