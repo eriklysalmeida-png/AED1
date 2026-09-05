@@ -1,0 +1,152 @@
+#include "raylib.h"
+#include <stdlib.h>
+
+#define LARGURA_JANELA 800
+#define ALTURA_JANELA 600
+#define TAM_CELULA 40
+
+// Agrupa os dados de cada bola
+typedef struct {
+    Vector2 pos;
+    Vector2 vel;
+    float raio;
+    Color cor;
+} Bola;
+
+// Aloca a matriz iniciando todos os valores com 0 (mapa de calor)[cite: 6]
+int **criarMatriz(int linhas, int colunas) {
+    int **matriz = (int **)malloc(linhas * sizeof(int *));
+    for (int i = 0; i < linhas; i++) {
+        matriz[i] = (int *)malloc(colunas * sizeof(int));
+        for (int j = 0; j < colunas; j++) {
+            matriz[i][j] = 0;
+        }
+    }
+    return matriz;
+}
+
+// Libera a matriz em duas etapas[cite: 6]
+void liberarMatriz(int **matriz, int linhas) {
+    for (int i = 0; i < linhas; i++) {
+        free(matriz[i]);
+    }
+    free(matriz);
+}
+
+// Aloca o vetor de bolas em um unico bloco[cite: 6]
+Bola *criarBolas(int quantidade) {
+    Bola *bolas = (Bola *)malloc(quantidade * sizeof(Bola));
+    for (int i = 0; i < quantidade; i++) {
+        Bola *b = (bolas + i); 
+        b->pos = (Vector2){ (float)GetRandomValue(50, LARGURA_JANELA - 50), (float)GetRandomValue(50, ALTURA_JANELA - 50) };
+        b->vel = (Vector2){ (float)GetRandomValue(-5, 5), (float)GetRandomValue(-5, 5) };
+        b->raio = 15.0f;
+        b->cor = (Color){ GetRandomValue(50, 255), GetRandomValue(50, 255), GetRandomValue(50, 255), 255 };
+    }
+    return bolas;
+}
+
+// Atualiza a posicao alterando os dados originais atraves do ponteiro[cite: 6]
+void atualizarBola(Bola *b) {
+    b->pos.x += b->vel.x;
+    b->pos.y += b->vel.y;
+
+    if (b->pos.x - b->raio < 0 || b->pos.x + b->raio > LARGURA_JANELA) b->vel.x *= -1;
+    if (b->pos.y - b->raio < 0 || b->pos.y + b->raio > ALTURA_JANELA) b->vel.y *= -1;
+}
+
+int main(void) {
+    InitWindow(LARGURA_JANELA, ALTURA_JANELA, "Janela");
+    SetTargetFPS(60);
+
+    int linhas = ALTURA_JANELA / TAM_CELULA;
+    int colunas = LARGURA_JANELA / TAM_CELULA;
+
+    int **matriz = criarMatriz(linhas, colunas);
+    int quantidadeBolas = 12;
+    Bola *bolas = criarBolas(quantidadeBolas);
+
+    while (!WindowShouldClose()) {
+        
+        // Adiciona uma nova bola redimensionando o vetor sem perder os dados[cite: 6]
+        if (IsKeyPressed(KEY_SPACE)) {
+            quantidadeBolas++;
+            bolas = (Bola *)realloc(bolas, quantidadeBolas * sizeof(Bola));
+            
+            Bola *nova = (bolas + (quantidadeBolas - 1));
+            nova->pos = (Vector2){ (float)GetRandomValue(50, LARGURA_JANELA - 50), (float)GetRandomValue(50, ALTURA_JANELA - 50) };
+            nova->vel = (Vector2){ (float)GetRandomValue(-5, 5), (float)GetRandomValue(-5, 5) };
+            if (nova->vel.x == 0) nova->vel.x = 2; 
+            if (nova->vel.y == 0) nova->vel.y = 2;
+            nova->raio = 15.0f;
+            nova->cor = (Color){ GetRandomValue(50, 255), GetRandomValue(50, 255), GetRandomValue(50, 255), 255 };
+        }
+
+        // Remove a ultima bola diminuindo o bloco de memoria alocado[cite: 6]
+        if (IsKeyPressed(KEY_BACKSPACE) && quantidadeBolas > 0) {
+            quantidadeBolas--;
+            if (quantidadeBolas > 0) {
+                bolas = (Bola *)realloc(bolas, quantidadeBolas * sizeof(Bola));
+            } else {
+                free(bolas);
+                bolas = NULL;
+            }
+        }
+
+        // Atualiza a fisica de cada bola e marca as celulas visitadas[cite: 6]
+        for (int i = 0; i < quantidadeBolas; i++) {
+            Bola *b = (bolas + i);
+            atualizarBola(b);
+
+            // Converte a posicao (x, y) em indices da matriz[cite: 6]
+            int coluna = (int)(b->pos.x / TAM_CELULA);
+            int linha = (int)(b->pos.y / TAM_CELULA);
+
+            // Verifica os limites da matriz antes de acessar[cite: 6]
+            if (linha >= 0 && linha < linhas && coluna >= 0 && coluna < colunas) {
+                matriz[linha][coluna] = 1;
+            }
+        }
+
+        // Conta quantas celulas foram visitadas[cite: 6]
+        int celulasVisitadas = 0;
+        for (int i = 0; i < linhas; i++) {
+            for (int j = 0; j < colunas; j++) {
+                if (matriz[i][j] == 1) {
+                    celulasVisitadas++;
+                }
+            }
+        }
+
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+
+        // Percorre e desenha a matriz alterando a cor das celulas visitadas[cite: 6]
+        for (int i = 0; i < linhas; i++) {
+            for (int j = 0; j < colunas; j++) {
+                Color corFundo = (matriz[i][j] == 1) ? LIGHTGRAY : DARKGRAY;
+                DrawRectangle(j * TAM_CELULA, i * TAM_CELULA, TAM_CELULA, TAM_CELULA, corFundo);
+                DrawRectangleLines(j * TAM_CELULA, i * TAM_CELULA, TAM_CELULA, TAM_CELULA, BLACK);
+            }
+        }
+
+        // Desenha os elementos do vetor de bolas[cite: 6]
+        for (int i = 0; i < quantidadeBolas; i++) {
+            Bola *b = (bolas + i);
+            DrawCircleV(b->pos, b->raio, b->cor);
+        }
+
+        DrawText(TextFormat("Celulas visitadas: %d | Bolas: %d", celulasVisitadas, quantidadeBolas), 10, 10, 20, GREEN);
+
+        EndDrawing();
+    }
+
+    // Libera a memoria alocada antes de fechar o programa[cite: 6]
+    if (bolas != NULL) {
+        free(bolas);
+    }
+    liberarMatriz(matriz, linhas);
+
+    CloseWindow();
+    return 0;
+}
